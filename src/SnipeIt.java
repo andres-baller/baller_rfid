@@ -234,31 +234,35 @@ class SnipeIt {
         return null;
     }
 
-    static void updateStorageWIP(List<String> tags) {
-        final String STORAGE_LOCATION_ID = "7";
-
+    /**
+     * Compare assets currenty located in a location to the assets found
+     * in a scan, and then check in/out assets as necessary.
+     *
+     * @param tags
+     * @param storageLocationId
+     */
+    static void updateStoredAssets(Collection<String> tags, String storageLocationId) {
         JSONObject response = Unirest.get(apiRoot + "hardware")
                 .header("Accept", "application/json")
                 .header("Content-Type", "application/json")
                 .header("Authorization", "Bearer " + API_KEY)
-                .queryString("location_id", STORAGE_LOCATION_ID)
+                .queryString("location_id", storageLocationId)
                 .asJson().getBody().getObject();
 
-        JSONArray objects = response.getJSONArray("rows");
-
+        JSONArray storedAssets = response.getJSONArray("rows");
         Set<String> storedAssetTags = new HashSet<>();
-        for (Object o : objects) {
-            JSONObject object = (JSONObject) o;
-            storedAssetTags.add(object.getString("asset_tag"));
+        for (Object asset : storedAssets) {
+            storedAssetTags.add(((JSONObject) asset).getString("asset_tag"));
         }
 
         // Create set from scanned asset tags
         Set<String> scannedAssetTags = new HashSet<>(tags);
 
-
+        // Check out any stored tags not found in the scan
         Set<String> assetTagsToCheckout = new HashSet<>(storedAssetTags);
         assetTagsToCheckout.removeAll(scannedAssetTags);
 
+        // Check in any scanned tags not currently stored
         Set<String> assetTagsToCheckin = new HashSet<>(scannedAssetTags);
         assetTagsToCheckin.removeAll(storedAssetTags);
 
@@ -275,7 +279,7 @@ class SnipeIt {
         if (assetTagsToCheckin.isEmpty()) {
             System.out.println("No new assets found. Nothing to check in.");
         } else { // Check in new assets
-            SnipeIt.checkinAssets(assetTagsToCheckin, "7");
+            SnipeIt.checkinAssets(assetTagsToCheckin, storageLocationId);
         }
 
     }
